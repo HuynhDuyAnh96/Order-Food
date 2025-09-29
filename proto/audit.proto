@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package fms;
+
+
+option go_package = "./proto";
+
+
+message AuditLog {
+  string id = 1;
+  string action = 2;
+  string user_id = 3;
+  int64 created_at = 4;
+  map<string, string> metadata = 5;
+}
+
+message SaveAuditRequest {
+  AuditLog log = 1;
+}
+
+message SaveAuditResponse {
+  bool success = 1;
+}
+
+service AuditService {
+  rpc SaveAudit(SaveAuditRequest) returns (SaveAuditResponse);
+}
