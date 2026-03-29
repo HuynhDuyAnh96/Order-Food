@@ -57,9 +57,11 @@ import (
 	"context"
 	"fms_audit/internal/domain"
 	"fmt"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type OrderRepository struct {
@@ -131,8 +133,42 @@ func (r *OrderRepository) UpdateOrder(ctx context.Context, order *domain.Order) 
 		"items":       order.Items,
 		"total_price": order.TotalPrice,
 		"status":      order.Status,
-		"updated_at":  order.UpdatedAt, // Thêm updated_at
+		"updated_at":  order.UpdatedAt,
 	}}
 	_, err := r.collection.UpdateOne(ctx, filter, update)
 	return err
+}
+
+// GetActiveOrders lay tat ca don dang hoat dong (pending/preparing/ready), sap xep theo thoi gian vao
+func (r *OrderRepository) GetActiveOrders(ctx context.Context) ([]domain.Order, error) {
+	filter := bson.M{
+		"status": bson.M{"$in": []string{"pending", "preparing", "ready"}},
+	}
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: 1}})
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var orders []domain.Order
+	err = cursor.All(ctx, &orders)
+	return orders, err
+}
+
+// UpdateOrderItemStatus cap nhat status cua 1 mon trong don hang
+func (r *OrderRepository) UpdateOrderItemStatus(ctx context.Context, orderID string, itemID string, status domain.ItemStatus) error {
+	filter := bson.M{"_id": orderID, "items.item_id": itemID}
+	update := bson.M{"$set": bson.M{
+		"items.$.item_status": status,
+		"updated_at":          time.Now(),
+	}}
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("update item status failed: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("order %s or item %s not found", orderID, itemID)
+	}
+	return nil
 }

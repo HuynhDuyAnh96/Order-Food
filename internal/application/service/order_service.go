@@ -148,14 +148,16 @@ func (s *OrderService) CreateOrder(ctx context.Context, request domain.CreateOrd
 		Items:       make([]domain.OrderItem, 0, len(request.Items)),
 	}
 
-	// Convert items và tính total
+	// Convert items va tinh total
 	var calculatedTotal float64
-	for _, reqItem := range request.Items {
+	for i, reqItem := range request.Items {
 		orderItem := domain.OrderItem{
+			ItemID:   fmt.Sprintf("%s_item_%d", orderID, i),
 			DishID:   reqItem.ID,
 			Title:    reqItem.Title,
 			Quantity: reqItem.Quantity,
 			Price:    reqItem.Price,
+			Status:   domain.ItemStatusPending,
 		}
 		order.Items = append(order.Items, orderItem)
 		calculatedTotal += reqItem.Price * float64(reqItem.Quantity)
@@ -235,6 +237,23 @@ func (s *OrderService) UpdateOrder(ctx context.Context, orderID string, request 
 	return order, nil
 }
 
+// PayOrder - nhân viên xác nhận đã thu tiền → bàn trống
+func (s *OrderService) PayOrder(ctx context.Context, orderID string) (*domain.Order, error) {
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+	if order.Status != domain.StatusCompleted {
+		return nil, fmt.Errorf("chỉ có thể thanh toán đơn đã hoàn thành, trạng thái hiện tại: %s", order.Status)
+	}
+	order.Status = domain.StatusPaid
+	order.UpdatedAt = time.Now()
+	if err := s.orderRepo.UpdateOrder(ctx, order); err != nil {
+		return nil, fmt.Errorf("failed to pay order: %w", err)
+	}
+	return order, nil
+}
+
 func calculateTotalPrice(items []domain.OrderItem) float64 {
 	var total float64
 	for _, item := range items {
@@ -307,14 +326,18 @@ func isValidStatusTransition(currentStatus, newStatus domain.OrderStatus) bool {
 		},
 		domain.StatusPreparing: {
 			domain.StatusReady,
+			domain.StatusCompleted,
 			domain.StatusCancelled,
 		},
 		domain.StatusReady: {
 			domain.StatusCompleted,
 			domain.StatusCancelled,
 		},
-		domain.StatusCompleted: {}, // Không thể chuyển từ completed
-		domain.StatusCancelled: {}, // Không thể chuyển từ cancelled
+		domain.StatusCompleted: {
+			domain.StatusPaid, // nhân viên thu tiền xong
+		},
+		domain.StatusPaid:      {},
+		domain.StatusCancelled: {},
 	}
 
 	allowedStatuses, exists := validTransitions[currentStatus]

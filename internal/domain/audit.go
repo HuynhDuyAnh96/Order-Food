@@ -118,6 +118,7 @@ const (
 	StatusPreparing OrderStatus = "preparing"
 	StatusReady     OrderStatus = "ready"
 	StatusCompleted OrderStatus = "completed"
+	StatusPaid      OrderStatus = "paid"      // Nhân viên xác nhận đã thu tiền → bàn trống
 	StatusCancelled OrderStatus = "cancelled"
 )
 
@@ -190,11 +191,22 @@ type Order struct {
 	UpdatedAt   time.Time   `bson:"updated_at" json:"updated_at"`
 }
 
+type ItemStatus string
+
+const (
+	ItemStatusPending ItemStatus = "pending"
+	ItemStatusCooking ItemStatus = "cooking"
+	ItemStatusReady   ItemStatus = "ready"
+	ItemStatusServed  ItemStatus = "served"
+)
+
 type OrderItem struct {
-	DishID   string  `bson:"dish_id" json:"dish_id"`
-	Quantity int     `bson:"quantity" json:"quantity"`
-	Price    float64 `bson:"price" json:"price"`
-	Title    string  `bson:"title" json:"title"`
+	ItemID   string     `bson:"item_id" json:"item_id"`
+	DishID   string     `bson:"dish_id" json:"dish_id"`
+	Quantity int        `bson:"quantity" json:"quantity"`
+	Price    float64    `bson:"price" json:"price"`
+	Title    string     `bson:"title" json:"title"`
+	Status   ItemStatus `bson:"item_status" json:"item_status"`
 }
 
 // Request model từ frontend
@@ -227,4 +239,55 @@ type UpdateOrderRequestItem struct {
 	Title    string  `json:"title"`
 	Price    float64 `json:"price"`
 	Quantity int     `json:"quantity"`
+}
+
+// ── KDS (Kitchen Display System) types ──────────────────────────────────────
+
+// DuplicateInfo: thông tin bàn khác đang gọi cùng món
+type DuplicateInfo struct {
+	TableNumber int    `json:"table_number"`
+	OrderID     string `json:"order_id"`
+	Quantity    int    `json:"quantity"`
+}
+
+// KDSOrderItem: 1 dòng món trong board của bếp, kèm flag trùng
+type KDSOrderItem struct {
+	ItemID        string          `json:"item_id"`
+	DishID        string          `json:"dish_id"`
+	Title         string          `json:"title"`
+	Quantity      int             `json:"quantity"`
+	Price         float64         `json:"price"`
+	Status        ItemStatus      `json:"status"`
+	IsDuplicate   bool            `json:"is_duplicate"`
+	DuplicateInfo []DuplicateInfo `json:"duplicate_info,omitempty"`
+}
+
+// KDSOrder: 1 đơn hàng trong board, sắp theo thứ tự ưu tiên
+type KDSOrder struct {
+	Priority    int            `json:"priority"`
+	OrderID     string         `json:"order_id"`
+	TableNumber int            `json:"table_number"`
+	CreatedAt   time.Time      `json:"created_at"`
+	WaitMinutes int            `json:"wait_minutes"`
+	Status      OrderStatus    `json:"status"`
+	Items       []KDSOrderItem `json:"items"`
+}
+
+// DishSummary: tổng kết món trùng ở footer board
+type DishSummary struct {
+	DishID   string          `json:"dish_id"`
+	Title    string          `json:"title"`
+	TotalQty int             `json:"total_qty"`
+	Tables   []DuplicateInfo `json:"tables"`
+}
+
+// KDSBoard: response trả về cho màn hình bếp
+type KDSBoard struct {
+	Orders      []KDSOrder    `json:"orders"`
+	DishSummary []DishSummary `json:"dish_summary"`
+}
+
+// UpdateItemStatusRequest: request từ bếp khi thay đổi status món
+type UpdateItemStatusRequest struct {
+	Status ItemStatus `json:"status"`
 }
