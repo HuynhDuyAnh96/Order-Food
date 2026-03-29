@@ -6,6 +6,7 @@ COPY . .
 RUN go build -o server ./cmd/main.go
 
 FROM alpine:latest
+RUN apk --no-cache add ca-certificates
 WORKDIR /app
 COPY --from=builder /app/server .
 COPY --from=builder /app/internal/img ./internal/img
