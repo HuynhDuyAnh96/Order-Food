@@ -96,8 +96,12 @@ func main() {
 		c.JSON(200, gin.H{"status": "ok", "message": "Dish API is running"})
 	})
 
-	log.Println("HTTP server listening on 0.0.0.0:8080")
-	if err := r.Run("0.0.0.0:8080"); err != nil {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Println("HTTP server listening on 0.0.0.0:" + port)
+	if err := r.Run("0.0.0.0:" + port); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }
