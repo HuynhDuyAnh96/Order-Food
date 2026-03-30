@@ -243,8 +243,6 @@ func NewDishRepository(db *mongo.Database) *DishRepository {
 
 func (r *DishRepository) GetAll(ctx context.Context, filter domain.DishFilter) ([]domain.Dish, int64, error) {
 	findOptions := options.Find()
-	findOptions.SetSkip(int64((filter.Page - 1) * filter.Limit))
-	findOptions.SetLimit(int64(filter.Limit))
 
 	query := bson.M{}
 	if filter.CookingMethod != "" {
