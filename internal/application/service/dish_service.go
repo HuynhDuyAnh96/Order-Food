@@ -17,17 +17,6 @@ func NewDishService(dishRepo *repository.DishRepository) *DishService {
 }
 
 func (s *DishService) GetDishes(ctx context.Context, filter domain.DishFilter) (domain.DishListResponse, error) {
-	// Set default values
-	if filter.Page <= 0 {
-		filter.Page = 1
-	}
-	if filter.Limit <= 0 {
-		filter.Limit = 10
-	}
-	if filter.Limit > 100 {
-		filter.Limit = 100 // Max limit to prevent abuse
-	}
-
 	dishes, total, err := s.dishRepo.GetAll(ctx, filter)
 	if err != nil {
 		return domain.DishListResponse{}, err
@@ -64,17 +53,6 @@ func (s *DishService) GetFeaturedDishes(ctx context.Context) ([]domain.DishCardR
 }
 
 func (s *DishService) GetDishesForFrontend(ctx context.Context, filter domain.DishFilter) (domain.DishCardListResponse, error) {
-	// Set default values
-	if filter.Page <= 0 {
-		filter.Page = 1
-	}
-	if filter.Limit <= 0 {
-		filter.Limit = 10
-	}
-	if filter.Limit > 100 {
-		filter.Limit = 100 // Max limit to prevent abuse
-	}
-
 	dishes, total, err := s.dishRepo.GetAll(ctx, filter)
 	if err != nil {
 		return domain.DishCardListResponse{}, err
