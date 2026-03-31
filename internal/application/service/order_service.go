@@ -285,6 +285,117 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID string) (*domain.Or
 	return order, nil
 }
 
+func (s *OrderService) AddItemToOrder(ctx context.Context, orderID string, reqItem domain.CreateOrderRequestItem) (*domain.Order, error) {
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+	if order.Status == domain.StatusPaid || order.Status == domain.StatusCancelled {
+		return nil, fmt.Errorf("không thể thêm món vào đơn có trạng thái: %s", order.Status)
+	}
+
+	newItem := domain.OrderItem{
+		ItemID:   fmt.Sprintf("%s_item_%d", orderID, len(order.Items)),
+		DishID:   reqItem.ID,
+		Title:    reqItem.Title,
+		Price:    reqItem.Price,
+		Quantity: reqItem.Quantity,
+		Status:   domain.ItemStatusPending,
+		IsCustom: reqItem.IsCustom,
+		Note:     reqItem.Note,
+	}
+	if newItem.IsCustom {
+		newItem.DishID = ""
+	}
+
+	if err := s.orderRepo.AddItemToOrder(ctx, orderID, newItem); err != nil {
+		return nil, err
+	}
+
+	order, err = s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	order.TotalPrice = calculateTotalPrice(order.Items)
+	order.UpdatedAt = time.Now()
+	if err := s.orderRepo.UpdateOrder(ctx, order); err != nil {
+		return nil, err
+	}
+	return order, nil
+}
+
+func (s *OrderService) RemoveItemFromOrder(ctx context.Context, orderID string, itemID string) (*domain.Order, error) {
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+	if order.Status == domain.StatusPaid || order.Status == domain.StatusCancelled {
+		return nil, fmt.Errorf("không thể xóa món khỏi đơn có trạng thái: %s", order.Status)
+	}
+
+	if err := s.orderRepo.RemoveItemFromOrder(ctx, orderID, itemID); err != nil {
+		return nil, err
+	}
+
+	order, err = s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	order.TotalPrice = calculateTotalPrice(order.Items)
+	order.UpdatedAt = time.Now()
+	if err := s.orderRepo.UpdateOrder(ctx, order); err != nil {
+		return nil, err
+	}
+	return order, nil
+}
+
+func (s *OrderService) UpdateItemQuantity(ctx context.Context, orderID string, itemID string, quantity int) (*domain.Order, error) {
+	if quantity <= 0 {
+		return nil, fmt.Errorf("số lượng phải lớn hơn 0")
+	}
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+	if order.Status == domain.StatusPaid || order.Status == domain.StatusCancelled {
+		return nil, fmt.Errorf("không thể sửa món trong đơn có trạng thái: %s", order.Status)
+	}
+
+	if err := s.orderRepo.UpdateItemQuantity(ctx, orderID, itemID, quantity); err != nil {
+		return nil, err
+	}
+
+	order, err = s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	order.TotalPrice = calculateTotalPrice(order.Items)
+	order.UpdatedAt = time.Now()
+	if err := s.orderRepo.UpdateOrder(ctx, order); err != nil {
+		return nil, err
+	}
+	return order, nil
+}
+
+func (s *OrderService) CancelOrder(ctx context.Context, orderID string) (*domain.Order, error) {
+	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("order not found: %w", err)
+	}
+	if order.Status == domain.StatusPaid {
+		return nil, fmt.Errorf("không thể huỷ đơn đã thanh toán")
+	}
+	if order.Status == domain.StatusCancelled {
+		return nil, fmt.Errorf("đơn đã bị huỷ rồi")
+	}
+	order.Status = domain.StatusCancelled
+	order.UpdatedAt = time.Now()
+	if err := s.orderRepo.UpdateOrder(ctx, order); err != nil {
+		return nil, err
+	}
+	return order, nil
+}
+
 func calculateTotalPrice(items []domain.OrderItem) float64 {
 	var total float64
 	for _, item := range items {

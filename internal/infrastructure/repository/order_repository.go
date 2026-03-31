@@ -156,6 +156,54 @@ func (r *OrderRepository) GetActiveOrders(ctx context.Context) ([]domain.Order, 
 	return orders, err
 }
 
+func (r *OrderRepository) AddItemToOrder(ctx context.Context, orderID string, item domain.OrderItem) error {
+	filter := bson.M{"_id": orderID}
+	update := bson.M{
+		"$push": bson.M{"items": item},
+		"$set":  bson.M{"updated_at": time.Now()},
+	}
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("add item failed: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("order %s not found", orderID)
+	}
+	return nil
+}
+
+func (r *OrderRepository) RemoveItemFromOrder(ctx context.Context, orderID string, itemID string) error {
+	filter := bson.M{"_id": orderID}
+	update := bson.M{
+		"$pull": bson.M{"items": bson.M{"item_id": itemID}},
+		"$set":  bson.M{"updated_at": time.Now()},
+	}
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("remove item failed: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("order %s not found", orderID)
+	}
+	return nil
+}
+
+func (r *OrderRepository) UpdateItemQuantity(ctx context.Context, orderID string, itemID string, quantity int) error {
+	filter := bson.M{"_id": orderID, "items.item_id": itemID}
+	update := bson.M{"$set": bson.M{
+		"items.$.quantity": quantity,
+		"updated_at":       time.Now(),
+	}}
+	result, err := r.collection.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("update quantity failed: %w", err)
+	}
+	if result.MatchedCount == 0 {
+		return fmt.Errorf("order %s or item %s not found", orderID, itemID)
+	}
+	return nil
+}
+
 // UpdateOrderItemStatus cap nhat status cua 1 mon trong don hang
 func (r *OrderRepository) UpdateOrderItemStatus(ctx context.Context, orderID string, itemID string, status domain.ItemStatus) error {
 	filter := bson.M{"_id": orderID, "items.item_id": itemID}

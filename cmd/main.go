@@ -80,6 +80,10 @@ func main() {
 		api.PUT("/orders/:orderId", orderHandler.UpdateOrder)
 		api.POST("/orders/:orderId/confirm", orderHandler.ConfirmOrder)
 		api.POST("/orders/:orderId/pay", orderHandler.PayOrder)
+		api.POST("/orders/:orderId/cancel", orderHandler.CancelOrder)
+		api.POST("/orders/:orderId/items", orderHandler.AddItemToOrder)
+		api.PATCH("/orders/:orderId/items/:itemId", orderHandler.UpdateItemQuantity)
+		api.DELETE("/orders/:orderId/items/:itemId", orderHandler.RemoveItemFromOrder)
 
 		// Kitchen routes
 		api.GET("/kitchen/board", kitchenHandler.GetKDSBoard)

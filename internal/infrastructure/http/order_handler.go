@@ -162,6 +162,95 @@ func (h *OrderHandler) PayOrder(c *gin.Context) {
 	h.hub.Send(msg)
 }
 
+// AddItemToOrder POST /api/orders/:orderId/items
+func (h *OrderHandler) AddItemToOrder(c *gin.Context) {
+	orderID := c.Param("orderId")
+	var reqItem domain.CreateOrderRequestItem
+	if err := c.ShouldBindJSON(&reqItem); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	order, err := h.orderService.AddItemToOrder(c.Request.Context(), orderID, reqItem)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": order})
+	msg, _ := json.Marshal(map[string]interface{}{
+		"event":       "order_updated",
+		"orderID":     order.ID,
+		"tableNumber": order.TableNumber,
+		"orderType":   order.OrderType,
+		"items":       order.Items,
+	})
+	h.hub.Send(msg)
+}
+
+// RemoveItemFromOrder DELETE /api/orders/:orderId/items/:itemId
+func (h *OrderHandler) RemoveItemFromOrder(c *gin.Context) {
+	orderID := c.Param("orderId")
+	itemID := c.Param("itemId")
+	order, err := h.orderService.RemoveItemFromOrder(c.Request.Context(), orderID, itemID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": order})
+	msg, _ := json.Marshal(map[string]interface{}{
+		"event":       "order_updated",
+		"orderID":     order.ID,
+		"tableNumber": order.TableNumber,
+		"orderType":   order.OrderType,
+		"items":       order.Items,
+	})
+	h.hub.Send(msg)
+}
+
+// UpdateItemQuantity PATCH /api/orders/:orderId/items/:itemId
+func (h *OrderHandler) UpdateItemQuantity(c *gin.Context) {
+	orderID := c.Param("orderId")
+	itemID := c.Param("itemId")
+	var body struct {
+		Quantity int `json:"quantity"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	order, err := h.orderService.UpdateItemQuantity(c.Request.Context(), orderID, itemID, body.Quantity)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": order})
+	msg, _ := json.Marshal(map[string]interface{}{
+		"event":       "order_updated",
+		"orderID":     order.ID,
+		"tableNumber": order.TableNumber,
+		"orderType":   order.OrderType,
+		"items":       order.Items,
+	})
+	h.hub.Send(msg)
+}
+
+// CancelOrder POST /api/orders/:orderId/cancel
+func (h *OrderHandler) CancelOrder(c *gin.Context) {
+	orderID := c.Param("orderId")
+	order, err := h.orderService.CancelOrder(c.Request.Context(), orderID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": order})
+	msg, _ := json.Marshal(map[string]interface{}{
+		"event":       "order_cancelled",
+		"orderID":     order.ID,
+		"tableNumber": order.TableNumber,
+		"orderType":   order.OrderType,
+	})
+	h.hub.Send(msg)
+}
+
 // WsEndpoint - WebSocket endpoint dung chung cho bep va staff
 func (h *OrderHandler) WsEndpoint(c *gin.Context) {
 	conn, err := upgrade.Upgrade(c.Writer, c.Request, nil)
