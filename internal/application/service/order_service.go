@@ -260,12 +260,15 @@ func (s *OrderService) PayOrder(ctx context.Context, orderID string) (*domain.Or
 	}
 
 	if order.OrderType == domain.OrderTypeTakeaway {
-		// Takeaway: chỉ cần không phải cancelled hoặc đã paid
+		// Takeaway: bếp phải xác nhận xong (ready) mới được thu tiền
 		if order.Status == domain.StatusPaid {
 			return nil, fmt.Errorf("đơn này đã được thanh toán rồi")
 		}
 		if order.Status == domain.StatusCancelled {
 			return nil, fmt.Errorf("không thể thanh toán đơn đã huỷ")
+		}
+		if order.Status == domain.StatusPending || order.Status == domain.StatusPreparing {
+			return nil, fmt.Errorf("bếp chưa hoàn thành đơn, trạng thái hiện tại: %s", order.Status)
 		}
 	} else {
 		// Dine-in: phải qua completed trước
