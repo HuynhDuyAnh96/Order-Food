@@ -122,6 +122,13 @@ const (
 	StatusCancelled OrderStatus = "cancelled"
 )
 
+type OrderType string
+
+const (
+	OrderTypeDineIn   OrderType = "dine_in"   // ăn tại quán
+	OrderTypeTakeaway OrderType = "takeaway"  // mang về
+)
+
 type Dish struct {
 	ID            string  `bson:"_id" json:"id"`
 	Name          string  `bson:"name" json:"name"`
@@ -183,7 +190,8 @@ type AuditLog struct {
 type Order struct {
 	ID          string      `bson:"_id" json:"id"`
 	UserID      string      `bson:"user_id" json:"user_id"`
-	TableNumber int         `bson:"table_number" json:"table_number"`
+	OrderType   OrderType   `bson:"order_type" json:"order_type"`   // dine_in | takeaway
+	TableNumber int         `bson:"table_number" json:"table_number"` // 0 nếu takeaway
 	TotalPrice  float64     `bson:"total_price" json:"total_price"`
 	Status      OrderStatus `bson:"status" json:"status"`
 	CreatedAt   time.Time   `bson:"created_at" json:"created_at"`
@@ -207,12 +215,15 @@ type OrderItem struct {
 	Price    float64    `bson:"price" json:"price"`
 	Title    string     `bson:"title" json:"title"`
 	Status   ItemStatus `bson:"item_status" json:"item_status"`
+	IsCustom bool       `bson:"is_custom" json:"is_custom"`     // true = món không có trên menu
+	Note     string     `bson:"note,omitempty" json:"note,omitempty"` // ghi chú thay đổi
 }
 
 // Request model từ frontend
 type CreateOrderRequest struct {
 	UserID      string                   `json:"user_id"`
-	TableNumber int                      `json:"table_number"` // Mới: Nhận từ frontend
+	OrderType   OrderType                `json:"order_type"`   // "dine_in" | "takeaway"
+	TableNumber int                      `json:"table_number"` // bắt buộc nếu dine_in, bỏ qua nếu takeaway
 	Items       []CreateOrderRequestItem `json:"items"`
 	Total       float64                  `json:"total"`
 	CreatedAt   time.Time                `json:"created_at"`
@@ -227,6 +238,8 @@ type CreateOrderRequestItem struct {
 	ImageURL      string  `json:"image_url"`
 	CookingMethod string  `json:"cooking_method"`
 	Rating        float64 `json:"rating"`
+	IsCustom      bool    `json:"is_custom"`            // true = món nhân viên tự nhập
+	Note          string  `json:"note,omitempty"`        // ghi chú: "ít cay", "không hành", v.v.
 }
 
 type UpdateOrderRequest struct {
@@ -266,7 +279,8 @@ type KDSOrderItem struct {
 type KDSOrder struct {
 	Priority    int            `json:"priority"`
 	OrderID     string         `json:"order_id"`
-	TableNumber int            `json:"table_number"`
+	OrderType   OrderType      `json:"order_type"`   // "dine_in" | "takeaway"
+	TableNumber int            `json:"table_number"` // 0 nếu takeaway
 	CreatedAt   time.Time      `json:"created_at"`
 	WaitMinutes int            `json:"wait_minutes"`
 	Status      OrderStatus    `json:"status"`

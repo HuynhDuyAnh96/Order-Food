@@ -90,6 +90,7 @@ func (s *KitchenService) GetKDSBoard(ctx context.Context) (*domain.KDSBoard, err
 		kdsOrders = append(kdsOrders, domain.KDSOrder{
 			Priority:    i + 1,
 			OrderID:     order.ID,
+			OrderType:   order.OrderType,
 			TableNumber: order.TableNumber,
 			CreatedAt:   order.CreatedAt,
 			WaitMinutes: int(time.Since(order.CreatedAt).Minutes()),

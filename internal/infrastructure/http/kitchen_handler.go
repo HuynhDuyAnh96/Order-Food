@@ -51,6 +51,7 @@ func (h *KitchenHandler) StartCooking(c *gin.Context) {
 		"event":       "dish_cooking",
 		"orderID":     orderID,
 		"itemID":      itemID,
+		"orderType":   order.OrderType,
 		"tableNumber": order.TableNumber,
 		"orderStatus": order.Status,
 	})
@@ -80,14 +81,15 @@ func (h *KitchenHandler) MarkDishReady(c *gin.Context) {
 		}
 	}
 
-	// Broadcast: staff app nhan alert "mon nay xong roi, mang ra ban"
+	// Broadcast: staff app nhan alert "mon nay xong roi, mang ra ban / goi khach"
 	msg, _ := json.Marshal(map[string]interface{}{
 		"event":       "dish_ready",
 		"orderID":     orderID,
 		"itemID":      itemID,
 		"itemTitle":   itemTitle,
+		"orderType":   order.OrderType,
 		"tableNumber": order.TableNumber,
-		"orderStatus": order.Status, // neu orderStatus == "ready" thi tat ca mon da xong
+		"orderStatus": order.Status,
 	})
 	h.hub.Send(msg)
 }
@@ -108,6 +110,7 @@ func (h *KitchenHandler) CompleteOrder(c *gin.Context) {
 	msg, _ := json.Marshal(map[string]interface{}{
 		"event":       "order_completed",
 		"orderID":     orderID,
+		"orderType":   order.OrderType,
 		"tableNumber": order.TableNumber,
 		"status":      order.Status,
 	})

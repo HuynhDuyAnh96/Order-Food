@@ -113,15 +113,21 @@ func NewOrderService(orderRepo *repository.OrderRepository) *OrderService {
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, request domain.CreateOrderRequest) (*domain.Order, error) {
-	// Set default table_number if not provided (fallback)
-	if request.TableNumber == 0 { // 0 là giá trị mặc định khi không gửi
-		request.TableNumber = 1 // Default table
-		fmt.Printf("Warning: table_number not provided, defaulting to %d\n", request.TableNumber)
+	// Set default order_type
+	if request.OrderType == "" {
+		request.OrderType = domain.OrderTypeDineIn
 	}
 
-	// Validate table_number (1-20)
-	if request.TableNumber < 1 || request.TableNumber > 20 {
-		return nil, fmt.Errorf("invalid table number: must be between 1 and 20")
+	// Validate table_number chỉ khi dine_in
+	if request.OrderType == domain.OrderTypeDineIn {
+		if request.TableNumber == 0 {
+			request.TableNumber = 1
+		}
+		if request.TableNumber < 1 || request.TableNumber > 20 {
+			return nil, fmt.Errorf("invalid table number: must be between 1 and 20")
+		}
+	} else {
+		request.TableNumber = 0 // takeaway không cần bàn
 	}
 
 	// Validate items
@@ -142,7 +148,8 @@ func (s *OrderService) CreateOrder(ctx context.Context, request domain.CreateOrd
 	order := &domain.Order{
 		ID:          orderID,
 		UserID:      userID,
-		TableNumber: request.TableNumber, // Đảm bảo gán từ request
+		OrderType:   request.OrderType,
+		TableNumber: request.TableNumber,
 		Status:      domain.StatusPending,
 		CreatedAt:   time.Now(),
 		Items:       make([]domain.OrderItem, 0, len(request.Items)),
@@ -151,13 +158,19 @@ func (s *OrderService) CreateOrder(ctx context.Context, request domain.CreateOrd
 	// Convert items va tinh total
 	var calculatedTotal float64
 	for i, reqItem := range request.Items {
+		dishID := reqItem.ID
+		if reqItem.IsCustom {
+			dishID = "" // món lậu không có DishID trong menu
+		}
 		orderItem := domain.OrderItem{
 			ItemID:   fmt.Sprintf("%s_item_%d", orderID, i),
-			DishID:   reqItem.ID,
+			DishID:   dishID,
 			Title:    reqItem.Title,
 			Quantity: reqItem.Quantity,
 			Price:    reqItem.Price,
 			Status:   domain.ItemStatusPending,
+			IsCustom: reqItem.IsCustom,
+			Note:     reqItem.Note,
 		}
 		order.Items = append(order.Items, orderItem)
 		calculatedTotal += reqItem.Price * float64(reqItem.Quantity)
@@ -237,15 +250,30 @@ func (s *OrderService) UpdateOrder(ctx context.Context, orderID string, request 
 	return order, nil
 }
 
-// PayOrder - nhân viên xác nhận đã thu tiền → bàn trống
+// PayOrder - nhân viên xác nhận đã thu tiền
+// dine_in: phải qua completed trước → paid → bàn trống
+// takeaway: có thể pay từ bất kỳ status nào (thu tiền xong đưa túi cho khách là xong)
 func (s *OrderService) PayOrder(ctx context.Context, orderID string) (*domain.Order, error) {
 	order, err := s.orderRepo.GetOrderByID(ctx, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("order not found: %w", err)
 	}
-	if order.Status != domain.StatusCompleted {
-		return nil, fmt.Errorf("chỉ có thể thanh toán đơn đã hoàn thành, trạng thái hiện tại: %s", order.Status)
+
+	if order.OrderType == domain.OrderTypeTakeaway {
+		// Takeaway: chỉ cần không phải cancelled hoặc đã paid
+		if order.Status == domain.StatusPaid {
+			return nil, fmt.Errorf("đơn này đã được thanh toán rồi")
+		}
+		if order.Status == domain.StatusCancelled {
+			return nil, fmt.Errorf("không thể thanh toán đơn đã huỷ")
+		}
+	} else {
+		// Dine-in: phải qua completed trước
+		if order.Status != domain.StatusCompleted {
+			return nil, fmt.Errorf("chỉ có thể thanh toán đơn đã hoàn thành, trạng thái hiện tại: %s", order.Status)
+		}
 	}
+
 	order.Status = domain.StatusPaid
 	order.UpdatedAt = time.Now()
 	if err := s.orderRepo.UpdateOrder(ctx, order); err != nil {
