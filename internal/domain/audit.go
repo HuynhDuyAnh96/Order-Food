@@ -155,6 +155,7 @@ type DishListResponse struct {
 }
 
 type DishCardResponse struct {
+	ID            string   `json:"id"`
 	Img           string   `json:"img"`
 	Title         string   `json:"title"`
 	Rating        *float64 `json:"rating"`
