@@ -66,3 +66,12 @@ func (h *DishHandler) GetGrilledDishes(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, dishes)
 }
+
+func (h *DishHandler) GetDrinks(c *gin.Context) {
+	drinks, err := h.dishService.GetDrinks(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get drinks"})
+		return
+	}
+	c.JSON(http.StatusOK, drinks)
+}

@@ -299,6 +299,10 @@ func (r *DishRepository) GetGrilledDishes(ctx context.Context) ([]domain.Dish, e
 	return r.getDishesByCookingMethod(ctx, "grilled")
 }
 
+func (r *DishRepository) GetDrinks(ctx context.Context) ([]domain.Dish, error) {
+	return r.getDishesByCookingMethod(ctx, "drink")
+}
+
 func (r *DishRepository) getDishesByCookingMethod(ctx context.Context, method string) ([]domain.Dish, error) {
 	cursor, err := r.collection.Find(ctx, bson.M{"cooking_method": method})
 	if err != nil {

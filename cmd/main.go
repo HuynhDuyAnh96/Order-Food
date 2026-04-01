@@ -72,6 +72,7 @@ func main() {
 		api.GET("/dishes/stir-fried", dishHandler.GetStirFriedDishes)
 		api.GET("/dishes/steamed", dishHandler.GetSteamedDishes)
 		api.GET("/dishes/grilled", dishHandler.GetGrilledDishes)
+		api.GET("/dishes/drinks", dishHandler.GetDrinks)
 
 		// Order routes
 		api.POST("/orders", orderHandler.CreateOrder)

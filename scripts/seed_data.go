@@ -308,6 +308,32 @@ func main() {
 			Price: 40000, CookingMethod: "grilled", Rating: 4.5, Featured: false,
 			ImageURL: "http://localhost:8080/images/h4.jpg",
 		},
+
+		// ── NƯỚC UỐNG ─────────────────────────────────────────────
+		Dish{
+			ID: "40", Name: "Coca Cola",
+			Description: "Nước ngọt Coca Cola lon/chai",
+			Price: 15000, CookingMethod: "drink", Rating: 4.5, Featured: false,
+			ImageURL: "http://localhost:8080/images/h1.jpg",
+		},
+		Dish{
+			ID: "41", Name: "Pepsi",
+			Description: "Nước ngọt Pepsi lon/chai",
+			Price: 15000, CookingMethod: "drink", Rating: 4.4, Featured: false,
+			ImageURL: "http://localhost:8080/images/h1.jpg",
+		},
+		Dish{
+			ID: "42", Name: "Sting",
+			Description: "Nước tăng lực Sting chai",
+			Price: 15000, CookingMethod: "drink", Rating: 4.3, Featured: false,
+			ImageURL: "http://localhost:8080/images/h1.jpg",
+		},
+		Dish{
+			ID: "43", Name: "Ôlong",
+			Description: "Trà Ôlong chai",
+			Price: 15000, CookingMethod: "drink", Rating: 4.3, Featured: false,
+			ImageURL: "http://localhost:8080/images/h1.jpg",
+		},
 	}
 
 	result, err := collection.InsertMany(context.Background(), dishes)
