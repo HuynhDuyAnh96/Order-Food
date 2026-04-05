@@ -34,11 +34,13 @@ func main() {
 	// Repositories
 	dishRepo := repository.NewDishRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
+	inventoryRepo := repository.NewInventoryRepository(db)
 
 	// Services
 	dishService := service.NewDishService(dishRepo)
 	orderService := service.NewOrderService(orderRepo)
 	kitchenService := service.NewKitchenService(orderRepo)
+	inventoryService := service.NewInventoryService(inventoryRepo)
 
 	// WebSocket hub dung chung
 	hub := httpinfra.NewHub()
@@ -47,6 +49,7 @@ func main() {
 	orderHandler := httpinfra.NewOrderHandler(orderService, hub)
 	dishHandler := httpinfra.NewDishHandler(dishService)
 	kitchenHandler := httpinfra.NewKitchenHandler(kitchenService, hub)
+	inventoryHandler := httpinfra.NewInventoryHandler(inventoryService)
 
 	r := gin.Default()
 
@@ -92,6 +95,39 @@ func main() {
 		api.POST("/kitchen/orders/:orderId/items/:itemId/start", kitchenHandler.StartCooking)
 		api.POST("/kitchen/orders/:orderId/items/:itemId/ready", kitchenHandler.MarkDishReady)
 		api.POST("/kitchen/orders/:orderId/items/:itemId/served", kitchenHandler.MarkDishServed)
+
+		// Inventory routes
+		inv := api.Group("/inventory")
+		{
+			// Loại nguyên liệu (sò huyết, sò lông, ...)
+			inv.POST("/ingredient-types", inventoryHandler.CreateIngredientType)
+			inv.GET("/ingredient-types", inventoryHandler.GetIngredientTypes)
+
+			// Phiếu nhập hàng
+			inv.POST("/receipts", inventoryHandler.CreateReceipt)
+			inv.GET("/receipts", inventoryHandler.GetReceipts)
+
+			// Mẻ xử lý (kg → rổ)
+			inv.POST("/batches", inventoryHandler.CreateProcessingBatch)
+			inv.GET("/batches", inventoryHandler.GetBatches)
+
+			// Chi phí gia vị (tỏi, ớt, dầu, than)
+			inv.PUT("/recipe-costs", inventoryHandler.UpsertRecipeCost)
+			inv.GET("/recipe-costs/:ingredientTypeId", inventoryHandler.GetRecipeCost)
+
+			// Tồn kho hiện tại
+			inv.GET("/stock", inventoryHandler.GetStockSummary)
+
+			// Ca bán tối
+			inv.POST("/sessions/open", inventoryHandler.OpenSession)
+			inv.GET("/sessions/current", inventoryHandler.GetCurrentSession)
+			inv.GET("/sessions", inventoryHandler.GetSessions)
+			inv.POST("/sessions/:sessionId/close", inventoryHandler.CloseSession)
+
+			// Báo cáo
+			inv.GET("/reports/yield", inventoryHandler.GetYieldReport)
+			inv.GET("/reports/cost", inventoryHandler.GetCostReport)
+		}
 	}
 
 	// WebSocket endpoint
